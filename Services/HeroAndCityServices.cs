@@ -1,58 +1,43 @@
-﻿using Microsoft.Data.SqlClient;
+﻿using Microsoft.EntityFrameworkCore;
+using TOHBackend.Contexts;
 using TOHBackend.DTOS;
+using TOHBackend.Entities;
 
 namespace TOHBackend.Services
 {
     public class HeroAndCityServices
     {
-        private readonly string _dbConnectionString;
-        public HeroAndCityServices(IConfiguration config) 
-        {
-            string? dbConnectionString = config["ConnectionStrings:DatabaseConnection"];
+        private readonly HeroesAndCitiesDBContext _context;
+        public HeroAndCityServices(HeroesAndCitiesDBContext context) => _context = context;
 
-            if (dbConnectionString == null) 
+        public async Task<List<HeroAndCityDTO>> GetHeroesAndCities(int Id) 
+        {
+            List<HeroAndCityDTO> heroesAndCity = [];
+
+            City? city = await _context.Cities.Where(city => city.Id == Id).FirstOrDefaultAsync();
+
+            if (city == null)
             {
-                throw new InvalidOperationException(dbConnectionString);
+                throw new Exception("There are no cities by this id");
             }
 
-            _dbConnectionString = dbConnectionString;
-        }
+            //look into flow on an alternative to AutoMapper
+            List<Hero> heroes = await _context.Heroes.Where(hero => hero.CityId == Id).ToListAsync();
 
-        public List<HeroAndCityDTO> GetHeroesAndCities(int Id) 
-        {
-            List<HeroAndCityDTO> heroesAndCities = new List<HeroAndCityDTO>();
-
-            try
+            foreach (Hero hero in heroes)
             {
-                using(SqlConnection connection = new SqlConnection(_dbConnectionString)) 
+                HeroAndCityDTO heroAndCity = new()
                 {
-                    connection.Open();
+                    Id = hero.Id,
+                    Name = hero.Name,
+                    City = city.Name
+                };
 
-                    string sql = "SELECT heroes.Id, heroes.name, cities.name FROM heroes JOIN cities ON heroes.CityId = cities.Id WHERE cities.Id = @Id";
-                    using(SqlCommand command = new SqlCommand(sql, connection)) 
-                    {
-                        command.Parameters.AddWithValue("Id", Id);
-                        using(SqlDataReader reader = command.ExecuteReader()) 
-                        {
-                            while (reader.Read()) 
-                            {
-                                HeroAndCityDTO heroAndCity = new HeroAndCityDTO();
-                                heroAndCity.Id = reader.GetInt32(0);
-                                heroAndCity.Name = reader.GetString(1);
-                                heroAndCity.City = reader.GetString(2);
 
-                                heroesAndCities.Add(heroAndCity);
-                            }
-                        }
-                    }
-                }
-            }
-            catch (SqlException ex) 
-            {
-                Console.WriteLine(ex.Message);
+                heroesAndCity.Add(heroAndCity);
             }
 
-            return heroesAndCities;
+            return heroesAndCity;
         }
     }
 }

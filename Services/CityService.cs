@@ -1,171 +1,99 @@
-﻿using Microsoft.Data.SqlClient;
-using TOHBackend.Model;
+﻿using AutoMapper;
+using Microsoft.EntityFrameworkCore;
+using TOHBackend.Contexts;
 using TOHBackend.DTOS;
-using Azure;
+using TOHBackend.Entities;
+using TOHBackend.Model;
+using TOHBackend.Services.IServices;
 
 namespace TOHBackend.Services
 {
-    public class CityService
+    public class CityService : ICityService
     {
-        private readonly string _dbConnectionString;  
-        
-        public CityService(IConfiguration configuration) 
+        public readonly HeroesAndCitiesDBContext _context;
+        private readonly IMapper _mapper;
+
+        public CityService(HeroesAndCitiesDBContext context, IMapper mapper)
         {
-            string? dbConnectionString = configuration["ConnectionStrings:DatabaseConnection"];
-
-            if (dbConnectionString == null) 
-            {
-                throw new InvalidOperationException("Missing db connection string");
-            }
-
-            _dbConnectionString = dbConnectionString;
-
-        }
-        public List<CityDTO> GetCities()
-        {
-            List<CityDTO> cities = new List<CityDTO>();
-
-            try
-            {
-                using (SqlConnection connection = new SqlConnection(_dbConnectionString))
-                {
-                    connection.Open();
-
-                    string sql = "SELECT * FROM cities";
-                    using (SqlCommand command = new SqlCommand(sql, connection))
-                    {
-                        using (SqlDataReader reader = command.ExecuteReader())
-                        {
-                            while (reader.Read())
-                            {
-                                CityDTO city = new CityDTO();
-                                city.Id = reader.GetInt32(0);
-                                city.Name = reader.GetString(1);
-
-                                cities.Add(city);
-                            }
-                        }
-                    }
-                }
-            }
-            catch (SqlException ex)
-            {
-                Console.WriteLine(ex);
-            }
-
-            return cities;
+            _context = context;
+            _mapper = mapper;
         }
 
-        public CityDTO GetCity(int id)
+        public async Task<List<CityDTO>> GetAll()
         {
-            CityDTO city = new CityDTO { Id = id };
+            List<City> cities = await _context.Cities.ToListAsync();
 
-            try
+            if (cities == null || cities.Count == 0) 
             {
-                using (SqlConnection connection = new SqlConnection(_dbConnectionString))
-                {
-                    connection.Open();
+                throw new ArgumentNullException("There are no cities left!");    
+            }
+            
+            List<CityDTO> citiesDTO = _mapper.Map<List<CityDTO>>(cities);
 
-                    string sql = $"SELECT * FROM cities WHERE Id={id}";
-                    using (SqlCommand command = new SqlCommand(sql, connection))
-                    {
-                        using (SqlDataReader reader = command.ExecuteReader())
-                        {
-                            while (reader.Read())
-                            {
-                                city.Id = reader.GetInt32(0);
-                                city.Name = reader.GetString(1);
-                            }
-                        }
-                    }
-                }
-            }
-            catch (SqlException ex)
-            {
-                Console.WriteLine(ex);
-            }
-            return city;
+            return citiesDTO;
         }
 
-        public CityDTO PutCity(CityDTO city)
+        public async Task<CityDTO> Get(int id)
         {
-            try
-            {
-                using (SqlConnection connection = new SqlConnection(_dbConnectionString))
-                {
-                    connection.Open();
+            City? city = await _context.Cities.FindAsync(id);
 
-                    string sql = "UPDATE cities SET Name = @Name WHERE Id = @Id";
-                    using (SqlCommand command = new SqlCommand(sql, connection))
-                    {
-                        command.Parameters.AddWithValue("@Name", city.Name);
-                        command.Parameters.AddWithValue("@Id", city.Id);
+            CityDTO cityDTO = _mapper.Map<CityDTO>(city); 
 
-                        int rowsAffected = command.ExecuteNonQuery();
-                        if (rowsAffected == 0)
-                        {
-                            Console.WriteLine($"No hero found with ID {city.Id}");
-                        }
-                    }
-                }
-            }
-            catch (SqlException ex)
-            {
-                Console.WriteLine(ex);
-            }
-
-            return city;
+            return cityDTO;
         }
 
-        public CityDTO AddCity(CityDTO city)
+        public async Task<List<CityDTO>> GetAll(string name)
         {
-            try
-            {
-                using (SqlConnection connection = new SqlConnection(_dbConnectionString))
-                {
-                    connection.Open();
+            List<City> cities = await _context.Set<City>().Where(city => city.Name.StartsWith(name)).ToListAsync();
 
-                    string sql = "INSERT INTO cities (Name) VALUES (@Name)";
-                    using (SqlCommand command = new SqlCommand(sql, connection))
-                    {
-                        command.Parameters.AddWithValue("@Name", city.Name);
+            List<CityDTO> cityDTOs = _mapper.Map<List<CityDTO>>(cities);
 
-                        int rowsAffected = command.ExecuteNonQuery();
-                        if (rowsAffected == 0)
-                        {
-                            Console.WriteLine($"No hero found with ID {city.Id}");
-                        }
-                    }
-                }
-            }
-
-            catch (SqlException ex)
-            {
-                Console.WriteLine(ex);
-            }
-
-            return city;
+            return cityDTOs;
         }
 
-        public string DeleteCity(int Id)
+        public async Task<CityDTO> Update(CityDTO cityDto)
         {
-            try
-            {
-                using (SqlConnection connection = new SqlConnection(_dbConnectionString))
-                {
-                    connection.Open();
+            City city = _mapper.Map<City>(cityDto);
 
-                    string sql = $"DELETE FROM cities WHERE Id = {Id} ";
-                    SqlCommand command = new SqlCommand(sql, connection);
-                    command.ExecuteNonQuery();
-                }
-            }
-            catch (SqlException ex)
+            City? cityResult = await _context.Cities.FindAsync(city.Id);
+
+            if (cityResult == null)
             {
-                Console.WriteLine(ex);
+                throw new InvalidDataException("There is no city by that description");
             }
 
-            return $"City with the id: {Id} has been deleted";
+                cityResult.Name = city.Name;
+
+            await _context.SaveChangesAsync();
+
+            CityDTO cityDTO = _mapper.Map<CityDTO>(cityResult);
+
+            return cityDTO;
+        }
+
+        public async Task<CityDTO> Add(CityDTO cityDto)
+        {
+            City city = _mapper.Map<City>(cityDto);
+
+            City addedCity = _context.Cities.Add(city).Entity;
+
+            await _context.SaveChangesAsync();
+
+            CityDTO addedCityDTO = _mapper.Map<CityDTO>(addedCity);
+
+            return addedCityDTO;
+        }
+
+        public async Task<bool> Delete(int Id)
+        {
+            int rowsAffected = await _context.Cities.Where(c => c.Id == Id).ExecuteDeleteAsync(); 
+
+            if (rowsAffected > 0)
+            {
+                return true;
+            }
+            
+            return false;
         }
     }
 }

@@ -1,55 +1,147 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using TOHBackend.DTOS;
-using TOHBackend.Model;
 using TOHBackend.Services;
+using TOHBackend.Services.IServices;
 namespace TOHBackend.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
     public class CitiesController : ControllerBase
     {
-        private readonly CityService _cityDBService;
+        private readonly ICityService _cityDBService;
+        private readonly ErrorHandlerService _errorHandlerService;
 
-        public CitiesController(CityService cityService)
+        public CitiesController(ICityService cityService, ErrorHandlerService errorHandlerService)
         {
             _cityDBService = cityService;
-        }
-        [HttpGet]
-        public Task<List<CityDTO>> GetCities()
-        {
-            List<CityDTO> cities = _cityDBService.GetCities();
-            return Task.FromResult(cities);
+            _errorHandlerService = errorHandlerService;
         }
 
         [HttpGet]
-        [Route("{id}")]
-        public Task<CityDTO> GetCity(int id)
+        public async Task<IActionResult> GetCities([FromQuery] string? name)
         {
-            CityDTO city = _cityDBService.GetCity(id);
-            return Task.FromResult(city);
+            try
+            {
+                if(name == null)
+                {
+                    List<CityDTO> cities = await _cityDBService.GetAll();
+                    return Ok(cities);
+                }
+                else
+                {
+                    List<CityDTO> cities = await _cityDBService.GetAll(name);
+                    return Ok(cities);
+                }
+              
+            }
+            catch
+            {
+                return NoContent();
+            }       
+        }
+
+
+        [HttpGet]
+        [Route("{id}", Name = "GetCity")]
+        public async Task<IActionResult> GetCity([FromRoute] int id)
+        {
+            try
+            {
+                if (id <= 0) 
+                {
+                    throw new BadHttpRequestException("Invalid Id");
+                }
+
+                CityDTO city = await _cityDBService.Get(id);
+                return Ok(city);
+            }
+            catch (Exception ex)
+            {
+                ErrorHandlerDTO error = _errorHandlerService.HandleError(ex);
+                return StatusCode(error.StatusCode, error.Message);
+            }
+          
         }
 
         [HttpPut]
         [Route("{id}")]
-        public Task<CityDTO> PutCity(CityDTO city)
+        public async Task<IActionResult> UpdateCity([FromBody] CityDTO city, [FromRoute] int id)
         {
-            CityDTO newCity = _cityDBService.PutCity(city);
-            return Task.FromResult(newCity);
+            try
+            {            
+                if (city == null)
+                { 
+                    throw new BadHttpRequestException("You did not submit a city to update");
+                }
+
+                if (city.Id != id) 
+                {
+                    throw new BadHttpRequestException("The city's id does not match the parameter dummy");
+                }
+
+                if (id <= 0) 
+                {
+                    throw new BadHttpRequestException("Invalid id");
+                }
+
+                CityDTO updateCity = await _cityDBService.Update(city);
+                return Ok(updateCity);
+            }
+            catch (Exception ex)
+            {
+                ErrorHandlerDTO error = _errorHandlerService.HandleError(ex);
+                return StatusCode(error.StatusCode, error.Message);
+            }
+         
         }
 
         [HttpPost]
-        public Task PostCity(CityDTO city)
+        public async Task<IActionResult> PostCity([FromBody] CityDTO city)
         {
-            CityDTO newCity = _cityDBService.AddCity(city);
-            return Task.FromResult(newCity);
+            try
+            {
+                if (string.IsNullOrEmpty(city.Name))
+                {
+                    throw new NullReferenceException("City needs a name");
+                } 
+
+                CityDTO newCity = await _cityDBService.Add(city);
+                return CreatedAtRoute("GetCity", new {id = newCity.Id}, newCity);
+            }
+            catch (Exception ex)
+            {
+                ErrorHandlerDTO error = _errorHandlerService.HandleError(ex);
+                return StatusCode(error.StatusCode, error.Message);
+            }
+           
         }
 
         [HttpDelete]
         [Route("{id}")]
-        public Task DeleteCity(int id)
+        public async Task<IActionResult> DeleteCity([FromRoute] int id)
         {
-            string response = _cityDBService.DeleteCity(id);
-            return Task.FromResult(response);
+            try
+            {
+                if (id <= 0) 
+                {
+                    throw new BadHttpRequestException("Invalid Id");
+                }
+            
+                bool response = await _cityDBService.Delete(id);
+            
+                if (response == false)
+                {
+                    throw new BadHttpRequestException($"No city found with ID {id}.");
+                }
+
+                return NoContent();
+            }
+            catch (Exception ex)
+            {
+                ErrorHandlerDTO error = _errorHandlerService.HandleError(ex);
+                return StatusCode(error.StatusCode, error.Message);
+            }
+
         }
     }
 }

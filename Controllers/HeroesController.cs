@@ -1,6 +1,8 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using TOHBackend.Services;
+using TOHBackend.DTOS;
 using TOHBackend.Model;
+using TOHBackend.Services;
+using TOHBackend.Services.IServices;
 
 namespace TOHBackend.Controllers
 {
@@ -8,56 +10,147 @@ namespace TOHBackend.Controllers
     [ApiController]
     public class HeroesController : ControllerBase
     {
-        private readonly HeroService _heroDBService;
+        private readonly IHeroService _heroDBService;
+        private readonly ErrorHandlerService _errorHandlerService;
 
-        public HeroesController(HeroService heroDBService)
+        public HeroesController(IHeroService heroDBService, ErrorHandlerService errorHandlerService)
         {
-           _heroDBService = heroDBService;
-        }
-        //just return the heroes instead of a task 
-        //Look into async
-        //Use await if using Task
-        //These should return 
-        [HttpGet]
-        public Task<List<HeroDTO>> GetHeroes()
-        {
-            List<HeroDTO> heroes = _heroDBService.GetHeroes();
-            return Task.FromResult(heroes);
+            _heroDBService = heroDBService;
+            _errorHandlerService = errorHandlerService;
         }
 
         [HttpGet]
-        [Route("{id}")]
-        public Task<HeroDTO> GetHero(int id) 
+        public async Task<IActionResult> GetHeroes([FromQuery] string? name)
         {
-            HeroDTO hero = _heroDBService.GetHero(id);
-            return Task.FromResult(hero);
+            try
+            {
+                List<HeroDTO> heroes;
+
+                if (string.IsNullOrEmpty(name))
+                {
+                    heroes = await _heroDBService.GetAll();
+                }
+                else
+                {
+                    heroes = await _heroDBService.GetAll(name);
+                }
+
+                if (heroes.Count == 0)
+                {
+                    return NoContent();
+                }
+
+                return Ok(heroes);
+            }
+            catch (Exception ex)
+            {
+                ErrorHandlerDTO error = _errorHandlerService.HandleError(ex);
+                return StatusCode(error.StatusCode, error.Message);
+            }
+
+        }
+
+        [HttpGet]
+        [Route("{id}", Name = "GetHero")]
+        public async Task<IActionResult> GetHero([FromRoute] int id)
+        {
+            try
+            {
+                if (id <= 0) 
+                {
+                    throw new BadHttpRequestException("Invalid Id");
+                }
+
+                HeroDTO hero = await _heroDBService.Get(id);
+                return Ok(hero);
+            }
+            catch (Exception ex)
+            {
+                ErrorHandlerDTO error = _errorHandlerService.HandleError(ex);
+                return StatusCode(error.StatusCode, error.Message);
+            }
+
         }
 
         [HttpPut]
         [Route("{id}")]
-        //Change names to UpdateHero
-        public Task<HeroDTO> PutHero(HeroDTO hero) 
+        public async Task<IActionResult> UpdateHero([FromBody] HeroDTO hero, [FromRoute] int id)
         {
-            //I need to make an if statement to make sure the id is the param
-            HeroDTO newHero = _heroDBService.PutHero(hero);
-            //Use your ControllerBase!!!
-            return Task.FromResult(newHero);
+            try
+            {
+                if (hero == null) 
+                {
+                    throw new BadHttpRequestException("You did not submit a hero to change");
+                }
+
+                if (hero.Id != id) 
+                {
+                    throw new BadHttpRequestException("This is not the same Id as the param");
+                }
+
+                if (id <= 0)
+                {
+                    throw new BadHttpRequestException("Invalid Id");
+                }
+
+                HeroDTO updateHero = await _heroDBService.Update(hero);
+                return Ok(updateHero);
+            }
+            catch (Exception ex)
+            {
+                ErrorHandlerDTO error = _errorHandlerService.HandleError(ex);
+                return StatusCode(error.StatusCode, error.Message);
+            }
+           
         }
 
         [HttpPost]
-        //Change names to AddHero
-        public Task PostHero(HeroDTO hero) 
+        public async Task<IActionResult> AddHero([FromBody] HeroDTO hero)
         {
-            HeroDTO newHero = _heroDBService.AddHero(hero);
-            return Task.FromResult(newHero);
+            try
+            {
+                if (hero.CityId != null)
+                {
+                    throw new BadHttpRequestException("CityId needs to be null");
+                }
+
+                HeroDTO newHero = await _heroDBService.Add(hero);
+                return CreatedAtRoute("GetHero", new { id = newHero.Id }, newHero);
+            }
+            catch (Exception ex)
+            {
+                ErrorHandlerDTO error = _errorHandlerService.HandleError(ex);
+                return StatusCode(error.StatusCode, error.Message);
+            }
+           
         }
 
         [HttpDelete]
         [Route("{id}")]
-        public Task DeleteHero(int id)
+        public async Task<IActionResult> DeleteHero([FromRoute] int id)
         {
-            string response = _heroDBService.DeleteHero(id);
-            return Task.FromResult(response);
+            try
+            {
+                if (id <= 0)
+                {
+                    throw new BadHttpRequestException("Valid Id is required");
+                }
+
+                bool response = await _heroDBService.Delete(id);
+
+                if (response == false)
+                {
+                    return NotFound($"No hero found with ID {id}.");
+                }
+
+                return NoContent();
+            }
+            catch (Exception ex)
+            {
+                ErrorHandlerDTO error = _errorHandlerService.HandleError(ex);
+                return StatusCode(error.StatusCode, error.Message);
+            }
+
         }
     } 
 }

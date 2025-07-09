@@ -1,174 +1,105 @@
-﻿
-
-using Microsoft.Data.SqlClient;
+﻿using AutoMapper;
+using Microsoft.EntityFrameworkCore;
+using TOHBackend.Contexts;
+using TOHBackend.Entities;
 using TOHBackend.Model;
+using TOHBackend.Services.IServices;
 
 namespace TOHBackend.Services
 {
-    public class HeroService
+    public class HeroService: IHeroService
     {
-        private readonly string _dbConnectionString;
+        private readonly HeroesAndCitiesDBContext _context;
+        private readonly IMapper _mapper;
 
-        public HeroService(IConfiguration configuration)
+        public HeroService(HeroesAndCitiesDBContext context, IMapper mapper)
         {
-            string? dbConnectionString = configuration["ConnectionStrings:DatabaseConnection"];
-
-            if (dbConnectionString == null)
-            {
-                throw new InvalidOperationException("Missing db connection string");
-            }
-
-            _dbConnectionString = dbConnectionString;
-
-        }
-        //Look into EF Core {easier way}
-        public List<HeroDTO> GetHeroes()
-        {
-            List<HeroDTO> heroes = [];
-
-            try
-            {
-                using SqlConnection connection = new(_dbConnectionString);
-                connection.Open();
-
-                string sql = "SELECT * FROM heroes";
-                using SqlCommand command = new(sql, connection);
-                using SqlDataReader reader = command.ExecuteReader();
-                while (reader.Read())
-                {
-                    HeroDTO hero = new()
-                    {
-                        Id = reader.GetInt32(0),
-                        Name = reader.GetString(1),
-                        CityId = reader.GetInt32(2)
-                    };
-
-                    heroes.Add(hero);
-                }
-            }
-            catch (SqlException ex)
-            {
-                Console.WriteLine(ex);
-            }
-
-            return heroes;
+            _context = context;
+            _mapper = mapper;
         }
 
-        public HeroDTO GetHero(int id)
+        public async Task<List<HeroDTO>> GetAll()
         {
-            HeroDTO hero = new HeroDTO { Id = id };
+            List<Hero> heroes = await _context.Heroes.ToListAsync();
 
-            try
+            if (heroes == null || heroes.Count == 0)
             {
-                using (SqlConnection connection = new SqlConnection(_dbConnectionString))
-                {
-                    connection.Open();
+                throw new ArgumentNullException("There are no heroes left!");
+            }
 
-                    string sql = $"SELECT * FROM heroes WHERE Id={id}";
-                    using (SqlCommand command = new SqlCommand(sql, connection))
-                    {
-                        using (SqlDataReader reader = command.ExecuteReader())
-                        {
-                            while (reader.Read())
-                            {
-                                hero.Id = reader.GetInt32(0);
-                                hero.Name = reader.GetString(1);
-                                hero.CityId = reader.GetInt32(2);
-                            }
-                        }
-                    }
-                }
-            }
-            catch (SqlException ex)
-            {
-                Console.WriteLine(ex);
-            }
-            return hero;
+            List<HeroDTO> heroesDTO = _mapper.Map<List<HeroDTO>>(heroes); 
+
+            return heroesDTO;
         }
 
-        public HeroDTO PutHero(HeroDTO hero)
+        public async Task<HeroDTO> Get(int id)
         {
-            try
-            {
-                using (SqlConnection connection = new SqlConnection(_dbConnectionString))
-                {
-                    connection.Open();
+            Hero? hero = await _context.Heroes.Where(hero => hero.Id == id).FirstOrDefaultAsync();
 
-                    string sql = "UPDATE heroes SET Name = @Name, CityId = @CityId WHERE Id = @Id";
-                    using (SqlCommand command = new SqlCommand(sql, connection))
-                    {
-                        command.Parameters.AddWithValue("@Name", hero.Name);
-                        command.Parameters.AddWithValue("@CityId", hero.CityId);
-                        command.Parameters.AddWithValue("@Id", hero.Id);
+            HeroDTO heroDTO = _mapper.Map<HeroDTO>(hero);
 
-                        int rowsAffected = command.ExecuteNonQuery();
-                        if (rowsAffected == 0)
-                        {
-                            Console.WriteLine($"No hero found with ID {hero.Id}");
-                        }
-                    }
-                }
-            }
-            catch (SqlException ex)
-            {
-                Console.WriteLine(ex);
-            }
-
-            return hero;
+            return heroDTO;
         }
 
-        public HeroDTO AddHero(HeroDTO hero)
+        public async Task<List<HeroDTO>> GetAll(string name)
         {
-            try
-            {
-                using (SqlConnection connection = new SqlConnection(_dbConnectionString))
-                {
-                    connection.Open();
+            List<Hero> heroes = await _context.Heroes.Where(hero => hero.Name.StartsWith(name)).ToListAsync();
 
-                    string sql = "INSERT INTO heroes (Name, CityId) VALUES (@Name, @CityId)";
-                    using (SqlCommand command = new SqlCommand(sql, connection)) 
-                    {
-                        command.Parameters.AddWithValue("@Name", hero.Name);
-                        command.Parameters.AddWithValue("@CityId", hero.CityId);
-                        
-                        int rowsAffected = command.ExecuteNonQuery();
-                        if (rowsAffected == 0)
-                        {
-                            //You are checking like a dummy
-                            //Entity Framework will solve this problem with not 
-                            Console.WriteLine($"No hero found with ID {hero.Id}");
-                        }
-                    }
-                }
-            }
+            List<HeroDTO> heroDTOs = _mapper.Map<List<HeroDTO>>(heroes);
 
-            catch(SqlException ex)
-            {
-                Console.WriteLine(ex);
-            }
-
-            return hero;
+            return heroDTOs;
         }
 
-        public string DeleteHero(int Id)
+
+        public async Task<HeroDTO> Update(HeroDTO heroDto)
         {
-            try
-            {
-               using (SqlConnection connection = new SqlConnection(_dbConnectionString))
-                {
-                    connection.Open();
+            Hero hero = _mapper.Map<Hero>(heroDto);
 
-                    string sql = $"DELETE FROM heroes WHERE Id = {Id} ";
-                    SqlCommand command = new SqlCommand(sql, connection);
-                    command.ExecuteNonQuery();
-                }
-            }
-            catch(SqlException ex)
+            Hero? updatedHero = await _context.Heroes.FindAsync(hero.Id);
+
+            if (updatedHero == null) 
             {
-                Console.WriteLine(ex);
+                throw new Exception("There is no hero like this dummy");
             }
 
-            return $"Hero with the id: {Id} has been deleted";
+            updatedHero.Name = hero.Name;
+            updatedHero.CityId = hero.CityId;
+
+            await _context.SaveChangesAsync();
+
+            HeroDTO updatedHeroDTO = _mapper.Map<HeroDTO>(updatedHero);
+
+            return updatedHeroDTO;
+        }
+
+        public async Task<HeroDTO> Add(HeroDTO heroDTO)
+        {
+            if (heroDTO.CityId != null)
+            {
+                throw new Exception("CityId has to be null");
+            }
+
+            Hero hero = _mapper.Map<Hero>(heroDTO);
+
+            Hero newHero = _context.Heroes.Add(hero).Entity;
+
+            await _context.SaveChangesAsync();
+
+            HeroDTO newHeroDTO = _mapper.Map<HeroDTO>(newHero);
+
+            return newHeroDTO;
+        }
+
+        public async Task<bool> Delete(int Id)
+        {
+            int rowsAffected = await _context.Heroes.Where(hero => hero.Id == Id).ExecuteDeleteAsync();
+
+            if (rowsAffected > 0)
+            {
+                return true;
+            }
+
+            return false;
         }
     }
 }

@@ -15,7 +15,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("TOHBackend")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+b7bf35fc08a13e25fd88fea2d32b3bed932c528d")]
 [assembly: System.Reflection.AssemblyProductAttribute("TOHBackend")]
 [assembly: System.Reflection.AssemblyTitleAttribute("TOHBackend")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
