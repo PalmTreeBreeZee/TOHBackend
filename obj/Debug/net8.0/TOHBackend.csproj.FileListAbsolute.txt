@@ -169,3 +169,7 @@ C:\Users\AzeemBrown\Repositories\TOHBackend\TOHBackend\obj\Debug\net8.0\refint\T
 C:\Users\AzeemBrown\Repositories\TOHBackend\TOHBackend\obj\Debug\net8.0\TOHBackend.pdb
 C:\Users\AzeemBrown\Repositories\TOHBackend\TOHBackend\obj\Debug\net8.0\TOHBackend.genruntimeconfig.cache
 C:\Users\AzeemBrown\Repositories\TOHBackend\TOHBackend\obj\Debug\net8.0\ref\TOHBackend.dll
+C:\Users\AzeemBrown\Repositories\TOHBackend\TOHBackend\obj\Debug\net8.0\rpswa.dswa.cache.json
+C:\Users\AzeemBrown\Repositories\TOHBackend\TOHBackend\obj\Debug\net8.0\rjimswa.dswa.cache.json
+C:\Users\AzeemBrown\Repositories\TOHBackend\TOHBackend\obj\Debug\net8.0\rjsmrazor.dswa.cache.json
+C:\Users\AzeemBrown\Repositories\TOHBackend\TOHBackend\obj\Debug\net8.0\rjsmcshtml.dswa.cache.json
