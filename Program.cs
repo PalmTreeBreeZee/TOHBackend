@@ -1,4 +1,4 @@
-using TOHBackend.Services;
+﻿using TOHBackend.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -8,6 +8,18 @@ builder.Services.AddScoped<CityService>();
 builder.Services.AddScoped<HeroAndCityServices>();
 
 builder.Services.AddControllers();
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowSpecificOrigins", policy =>
+    {
+        policy.WithOrigins(
+            "http://localhost:8100",
+            "https://localhost:8100"
+        )
+        .AllowAnyHeader()
+        .AllowAnyMethod();
+    });
+});
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -20,6 +32,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+app.UseCors("AllowSpecificOrigins");
 
 app.UseHttpsRedirection();
 

@@ -36,14 +36,18 @@ namespace TOHBackend.Services
                 using SqlDataReader reader = command.ExecuteReader();
                 while (reader.Read())
                 {
-                    HeroDTO hero = new()
+                    if (!reader.IsDBNull(0) && !reader.IsDBNull(1) && !reader.IsDBNull(2))
                     {
-                        Id = reader.GetInt32(0),
-                        Name = reader.GetString(1),
-                        CityId = reader.GetInt32(2)
-                    };
+                        HeroDTO hero = new()
+                        {
+                            Id = reader.GetInt32(0),
+                            Name = reader.GetString(1),
+                            CityId = reader.GetInt32(2)
+                        };
 
-                    heroes.Add(hero);
+                        heroes.Add(hero);
+                    }
+
                 }
             }
             catch (SqlException ex)
