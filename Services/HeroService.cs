@@ -94,21 +94,45 @@ namespace TOHBackend.Services
         {
             try
             {
-                using (SqlConnection connection = new SqlConnection(_dbConnectionString))
+                if (hero.CityId.HasValue)
                 {
-                    connection.Open();
-
-                    string sql = "UPDATE heroes SET Name = @Name, CityId = @CityId WHERE Id = @Id";
-                    using (SqlCommand command = new SqlCommand(sql, connection))
+                    using (SqlConnection connection = new SqlConnection(_dbConnectionString))
                     {
-                        command.Parameters.AddWithValue("@Name", hero.Name);
-                        command.Parameters.AddWithValue("@CityId", hero.CityId);
-                        command.Parameters.AddWithValue("@Id", hero.Id);
+                        connection.Open();
 
-                        int rowsAffected = command.ExecuteNonQuery();
-                        if (rowsAffected == 0)
+                        string sql = "UPDATE heroes SET Name = @Name, CityId = @CityId WHERE Id = @Id";
+                        using (SqlCommand command = new SqlCommand(sql, connection))
                         {
-                            Console.WriteLine($"No hero found with ID {hero.Id}");
+                            command.Parameters.AddWithValue("@Name", hero.Name);
+                            command.Parameters.AddWithValue("@CityId", hero.CityId);
+                            command.Parameters.AddWithValue("@Id", hero.Id);
+
+                            int rowsAffected = command.ExecuteNonQuery();
+                            if (rowsAffected == 0)
+                            {
+                                Console.WriteLine($"No hero found with ID {hero.Id}");
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    using (SqlConnection connection = new SqlConnection(_dbConnectionString))
+                    {
+                        connection.Open();
+
+                        string sql = "UPDATE heroes SET Name = @Name, CityId = @CityId WHERE Id = @Id";
+                        using (SqlCommand command = new SqlCommand(sql, connection))
+                        {
+                            command.Parameters.AddWithValue("@Name", hero.Name);
+                            command.Parameters.AddWithValue("@CityId", DBNull.Value);
+                            command.Parameters.AddWithValue("@Id", hero.Id);
+
+                            int rowsAffected = command.ExecuteNonQuery();
+                            if (rowsAffected == 0)
+                            {
+                                Console.WriteLine($"No hero found with ID {hero.Id}");
+                            }
                         }
                     }
                 }
