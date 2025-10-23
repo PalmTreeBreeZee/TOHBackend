@@ -46,6 +46,16 @@ namespace TOHBackend.Services
                         };
 
                         heroes.Add(hero);
+                    } else if (!reader.IsDBNull(0) && !reader.IsDBNull(1) && reader.IsDBNull(2))
+                    {
+                        HeroDTO hero = new()
+                        {
+                            Id = reader.GetInt32(0),
+                            Name = reader.GetString(1),
+                            CityId = null
+                        };
+
+                        heroes.Add(hero);
                     }
 
                 }
